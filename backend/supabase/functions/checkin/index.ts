@@ -1,3 +1,4 @@
+// supabase/functions/checkin/index.ts
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1'
 
@@ -8,7 +9,6 @@ const corsHeaders = {
 
 interface CheckinRequest {
   name: string;
-  code: string;
   deviceFingerprint?: string;
   userAgent?: string;
   timestamp: string;
@@ -43,12 +43,12 @@ serve(async (req) => {
     }
 
     const requestData: CheckinRequest = await req.json()
-    const { name, code, deviceFingerprint, userAgent, timestamp } = requestData
+    const { name, deviceFingerprint, userAgent, timestamp } = requestData
 
     // Validate required fields
-    if (!name || !code) {
+    if (!name || !name.trim()) {
       return new Response(
-        JSON.stringify({ error: 'Name and code are required' }),
+        JSON.stringify({ error: 'Name is required' }),
         { 
           status: 400, 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
@@ -56,41 +56,46 @@ serve(async (req) => {
       )
     }
 
-    // Verify student exists and code matches
-    const { data: student, error: studentError } = await supabaseClient
-      .from('students')
-      .select('id, name, access_code, is_active')
-      .eq('name', name)
-      .eq('access_code', code)
-      .eq('is_active', true)
-      .single()
-
-    if (studentError || !student) {
-      console.error('Student validation error:', studentError)
+    // Clean and validate name
+    const cleanName = name.trim()
+    if (cleanName.length < 2) {
       return new Response(
-        JSON.stringify({ error: 'Invalid name or access code' }),
+        JSON.stringify({ error: 'Please enter your complete name' }),
         { 
-          status: 401, 
+          status: 400, 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
         }
       )
     }
 
-    // Check if already checked in today
+    // Basic name validation (letters, spaces, hyphens, apostrophes, periods)
+    const nameRegex = /^[a-zA-Z\s\-'\.]+$/
+    if (!nameRegex.test(cleanName)) {
+      return new Response(
+        JSON.stringify({ error: 'Please enter a valid name' }),
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      )
+    }
+
+    // Check if already checked in today using time range query
     const today = new Date().toISOString().split('T')[0] // YYYY-MM-DD format
     
     const { data: existingCheckin, error: checkinError } = await supabaseClient
       .from('attendance')
       .select('id, check_in_time')
-      .eq('student_name', name)
-      .eq('check_in_date', today)
+      .eq('student_name', cleanName)
+      .gte('check_in_time', `${today}T00:00:00.000Z`)
+      .lt('check_in_time', `${today}T23:59:59.999Z`)
       .single()
 
     if (existingCheckin) {
       const checkinTime = new Date(existingCheckin.check_in_time).toLocaleTimeString()
       return new Response(
         JSON.stringify({ 
-          error: `Already checked in today at ${checkinTime}`,
+          error: `${cleanName} already checked in today at ${checkinTime}`,
           alreadyCheckedIn: true 
         }),
         { 
@@ -101,16 +106,30 @@ serve(async (req) => {
     }
 
     // Get client IP (for basic tracking, not for security)
-    const clientIP = req.headers.get('x-forwarded-for') || 
-                    req.headers.get('x-real-ip') || 
-                    'unknown'
+    // Handle x-forwarded-for header which can contain multiple IPs
+    const forwardedFor = req.headers.get('x-forwarded-for')
+    const realIP = req.headers.get('x-real-ip')
+    
+    let clientIP = 'unknown'
+    if (forwardedFor) {
+      // x-forwarded-for can be "ip1,ip2,ip3" - take the first one
+      clientIP = forwardedFor.split(',')[0].trim()
+    } else if (realIP) {
+      clientIP = realIP.trim()
+    }
+    
+    // Validate IP format (basic check)
+    const ipRegex = /^(\d{1,3}\.){3}\d{1,3}$/
+    if (!ipRegex.test(clientIP)) {
+      clientIP = 'unknown'
+    }
 
     // Insert attendance record
     const { data: attendance, error: insertError } = await supabaseClient
       .from('attendance')
       .insert({
-        student_id: student.id,
-        student_name: name,
+        student_id: null, // We don't require student registration
+        student_name: cleanName,
         ip_address: clientIP,
         user_agent: userAgent?.substring(0, 500), // Limit length
         device_fingerprint: deviceFingerprint?.substring(0, 100), // Limit length
@@ -148,7 +167,7 @@ serve(async (req) => {
         success: true,
         message: 'Check-in successful',
         timestamp: attendance.check_in_time,
-        studentName: name
+        studentName: cleanName
       }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
