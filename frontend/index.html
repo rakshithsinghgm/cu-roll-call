@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CU Roll Call - Check In</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #333;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            padding: 2rem;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+        }
+
+        .logo {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 0.5rem;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 2rem;
+            font-size: 1.1rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+            text-align: left;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: #555;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 1rem;
+            border: 2px solid #e1e5e9;
+            border-radius: 10px;
+            font-size: 1.1rem;
+            transition: border-color 0.3s ease;
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .btn {
+            width: 100%;
+            padding: 1rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .message {
+            margin-top: 1rem;
+            padding: 1rem;
+            border-radius: 8px;
+            font-weight: 500;
+        }
+
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #ffffff;
+            border-radius: 50%;
+            border-top-color: transparent;
+            animation: spin 1s ease-in-out infinite;
+            margin-right: 10px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .instructions {
+            background-color: #f8f9fa;
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1.5rem;
+            text-align: left;
+            border-left: 4px solid #667eea;
+        }
+
+        .instructions h4 {
+            color: #667eea;
+            margin-bottom: 0.5rem;
+        }
+
+        .instructions p {
+            color: #666;
+            font-size: 0.9rem;
+            line-height: 1.4;
+        }
+
+        .form-hint {
+            font-size: 0.8rem;
+            color: #888;
+            margin-top: 0.3rem;
+        }
+
+        .recent-checkins {
+            margin-top: 2rem;
+            padding: 1rem;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            text-align: left;
+        }
+
+        .recent-checkins h4 {
+            color: #667eea;
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+        }
+
+        .recent-list {
+            font-size: 0.8rem;
+            color: #666;
+            max-height: 100px;
+            overflow-y: auto;
+        }
+
+        .recent-item {
+            padding: 0.2rem 0;
+            border-bottom: 1px solid #eee;
+        }
+
+        .recent-item:last-child {
+            border-bottom: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">🥋 CU Roll Call</div>
+        <div class="subtitle">Jiu Jitsu Attendance Tracker</div>
+        
+        <div class="instructions">
+            <h4>Quick Check-In:</h4>
+            <p>Just enter your full name and hit check-in. You can only check in once per day.</p>
+        </div>
+
+        <form id="checkinForm">
+            <div class="form-group">
+                <label for="name">Full Name</label>
+                <input 
+                    type="text" 
+                    id="name" 
+                    name="name" 
+                    placeholder="Enter your full name"
+                    required 
+                    autocomplete="name"
+                >
+                <div class="form-hint">Use your name as the instructor knows it</div>
+            </div>
+            
+            <button type="submit" class="btn" id="submitBtn">
+                Check In Now
+            </button>
+        </form>
+
+        <div id="message" class="hidden"></div>
+        
+        <div id="recentCheckins" class="recent-checkins hidden">
+            <h4>Recent Check-ins Today:</h4>
+            <div id="recentList" class="recent-list"></div>
+        </div>
+    </div>
+
+    <script>
+        // Configuration - Replace with your Supabase project details
+        const SUPABASE_URL = 'https://posidnbttxlbutscdhpm.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBvc2lkbmJ0dHhsYnV0c2NkaHBtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI1OTkwMDYsImV4cCI6MjA2ODE3NTAwNn0.G_g7RCVktBr0EwhtBrmZRYAnPSZxR3FVxTzz6BqxOSY';
+
+        // Generate device fingerprint for basic tracking
+        function generateDeviceFingerprint() {
+            const fingerprint = {
+                screen: `${screen.width}x${screen.height}`,
+                timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                language: navigator.language,
+                timestamp: Date.now()
+            };
+            
+            return btoa(JSON.stringify(fingerprint)).substring(0, 50);
+        }
+
+        // Show message to user
+        function showMessage(text, type = 'info') {
+            const messageEl = document.getElementById('message');
+            messageEl.textContent = text;
+            messageEl.className = `message ${type}`;
+            messageEl.classList.remove('hidden');
+        }
+
+        // Clear message
+        function clearMessage() {
+            const messageEl = document.getElementById('message');
+            messageEl.classList.add('hidden');
+        }
+
+        // Validate form inputs
+        function validateForm(name) {
+            if (!name.trim()) {
+                showMessage('Please enter your full name', 'error');
+                return false;
+            }
+            
+            if (name.trim().length < 2) {
+                showMessage('Please enter your complete name', 'error');
+                return false;
+            }
+            
+            // Basic name validation (letters, spaces, hyphens, apostrophes)
+            const nameRegex = /^[a-zA-Z\s\-'\.]+$/;
+            if (!nameRegex.test(name.trim())) {
+                showMessage('Please enter a valid name (letters only)', 'error');
+                return false;
+            }
+            
+            return true;
+        }
+
+        // Load recent check-ins for today
+        async function loadRecentCheckins() {
+            try {
+                const today = new Date().toISOString().split('T')[0];
+                
+                const response = await fetch(`${SUPABASE_URL}/rest/v1/attendance?check_in_date=eq.${today}&select=student_name,check_in_time&order=check_in_time.desc&limit=10`, {
+                    headers: {
+                        'apikey': SUPABASE_ANON_KEY,
+                        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+                    }
+                });
+
+                if (response.ok) {
+                    const checkins = await response.json();
+                    if (checkins.length > 0) {
+                        const recentList = document.getElementById('recentList');
+                        recentList.innerHTML = checkins.map(checkin => {
+                            const time = new Date(checkin.check_in_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                            return `<div class="recent-item">${checkin.student_name} - ${time}</div>`;
+                        }).join('');
+                        
+                        document.getElementById('recentCheckins').classList.remove('hidden');
+                    }
+                }
+            } catch (error) {
+                // Silently fail - not critical functionality
+                console.log('Could not load recent check-ins:', error);
+            }
+        }
+
+        // Handle form submission
+        async function handleSubmit(event) {
+            event.preventDefault();
+            
+            const submitBtn = document.getElementById('submitBtn');
+            const nameInput = document.getElementById('name');
+            
+            const name = nameInput.value.trim();
+            
+            // Clear any previous messages
+            clearMessage();
+            
+            // Validate inputs
+            if (!validateForm(name)) {
+                return;
+            }
+            
+            // Show loading state
+            submitBtn.innerHTML = '<span class="loading"></span>Checking in...';
+            submitBtn.disabled = true;
+
+            try {
+                const deviceFingerprint = generateDeviceFingerprint();
+                
+                const response = await fetch(`${SUPABASE_URL}/functions/v1/checkin`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+                    },
+                    body: JSON.stringify({
+                        name: name,
+                        deviceFingerprint: deviceFingerprint,
+                        userAgent: navigator.userAgent,
+                        timestamp: new Date().toISOString()
+                    })
+                });
+
+                const result = await response.json();
+
+                if (response.ok && result.success) {
+                    showMessage(`✅ Welcome ${name}! Successfully checked in at ${new Date().toLocaleTimeString()}`, 'success');
+                    submitBtn.innerHTML = '✅ Checked In Today';
+                    
+                    // Refresh recent check-ins list
+                    setTimeout(() => {
+                        loadRecentCheckins();
+                    }, 1000);
+                    
+                    // Clear form for next user (after a delay)
+                    setTimeout(() => {
+                        nameInput.value = '';
+                        clearMessage();
+                        submitBtn.innerHTML = 'Check In Now';
+                        submitBtn.disabled = false;
+                        nameInput.focus();
+                    }, 4000);
+                    
+                } else {
+                    showMessage(result.error || 'Check-in failed. Please try again.', 'error');
+                    submitBtn.innerHTML = 'Check In Now';
+                    submitBtn.disabled = false;
+                }
+            } catch (error) {
+                console.error('Check-in error:', error);
+                showMessage('Network error. Please check your connection and try again.', 'error');
+                submitBtn.innerHTML = 'Check In Now';
+                submitBtn.disabled = false;
+            }
+        }
+
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('checkinForm').addEventListener('submit', handleSubmit);
+            document.getElementById('name').focus(); // Focus on name field
+            
+            // Load recent check-ins
+            loadRecentCheckins();
+            
+            // Add real-time validation feedback
+            const nameInput = document.getElementById('name');
+            nameInput.addEventListener('input', function() {
+                clearMessage();
+            });
+        });
+    </script>
+</body>
+</html>
