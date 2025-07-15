@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CU Roll Call - Stress Test Tool</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            padding: 2rem;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .logo {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 0.5rem;
+        }
+
+        .config-section {
+            background: #f8f9fa;
+            padding: 1.5rem;
+            border-radius: 10px;
+            margin-bottom: 2rem;
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: #555;
+        }
+
+        input[type="text"], input[type="number"], select {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid #e1e5e9;
+            border-radius: 8px;
+            font-size: 1rem;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 1rem;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+            margin-right: 1rem;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+        }
+
+        .results-section {
+            margin-top: 2rem;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin: 1rem 0;
+        }
+
+        .stat-box {
+            background: #f8f9fa;
+            padding: 1rem;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        .log-area {
+            background: #f8f9fa;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 1rem;
+            height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 0.9rem;
+            white-space: pre-wrap;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: #e9ecef;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 1rem 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .error {
+            color: #dc3545;
+        }
+
+        .success {
+            color: #28a745;
+        }
+
+        .warning {
+            color: #ffc107;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">🥋 CU Roll Call - Stress Test Tool</div>
+            <p>Test your attendance system under load</p>
+        </div>
+
+        <div class="config-section">
+            <h3>Configuration</h3>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="apiUrl">API URL</label>
+                    <input type="text" id="apiUrl" value="https://your-project.supabase.co" placeholder="https://your-project.supabase.co">
+                </div>
+                <div class="form-group">
+                    <label for="apiKey">API Key</label>
+                    <input type="text" id="apiKey" placeholder="Your Supabase anon key">
+                </div>
+                <div class="form-group">
+                    <label for="testType">Test Type</label>
+                    <select id="testType">
+                        <option value="concurrent">Concurrent Users</option>
+                        <option value="sequential">Sequential Load</option>
+                        <option value="duplicate">Duplicate Prevention</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="numRequests">Number of Requests</label>
+                    <input type="number" id="numRequests" value="50" min="1" max="1000">
+                </div>
+                <div class="form-group">
+                    <label for="concurrency">Concurrent Users</label>
+                    <input type="number" id="concurrency" value="10" min="1" max="50">
+                </div>
+                <div class="form-group">
+                    <label for="delay">Delay Between Requests (ms)</label>
+                    <input type="number" id="delay" value="100" min="0" max="5000">
+                </div>
+            </div>
+
+            <div style="margin-top: 1rem;">
+                <button class="btn" id="startTest" onclick="startStressTest()">Start Stress Test</button>
+                <button class="btn btn-danger" id="stopTest" onclick="stopStressTest()" disabled>Stop Test</button>
+                <button class="btn" onclick="clearLogs()">Clear Logs</button>
+                <button class="btn" onclick="generateTestData()">Generate Test Names</button>
+            </div>
+        </div>
+
+        <div class="results-section">
+            <h3>Test Results</h3>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            
+            <div class="stats-grid">
+                <div class="stat-box">
+                    <div class="stat-number" id="totalRequests">0</div>
+                    <div class="stat-label">Total Requests</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-number" id="successCount">0</div>
+                    <div class="stat-label">Successful</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-number" id="errorCount">0</div>
+                    <div class="stat-label">Errors</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-number" id="avgResponseTime">0ms</div>
+                    <div class="stat-label">Avg Response Time</div>
+                </div>
+            </div>
+
+            <h4>Live Log</h4>
+            <div class="log-area" id="logArea"></div>
+        </div>
+    </div>
+
+    <script>
+        let testRunning = false;
+        let testAborted = false;
+        let stats = {
+            total: 0,
+            success: 0,
+            errors: 0,
+            responseTimes: []
+        };
+
+        // Sample test names
+        const testNames = [
+            'John Smith', 'Maria Garcia', 'David Johnson', 'Sarah Wilson', 'Michael Brown',
+            'Jennifer Davis', 'William Miller', 'Ashley Taylor', 'James Anderson', 'Jessica Thomas',
+            'Robert Jackson', 'Amanda White', 'Christopher Harris', 'Melissa Martin', 'Matthew Thompson',
+            'Stephanie Garcia', 'Joshua Martinez', 'Michelle Robinson', 'Andrew Clark', 'Kimberly Rodriguez',
+            'Daniel Lewis', 'Lisa Walker', 'Anthony Hall', 'Nancy Allen', 'Mark Young',
+            'Karen Hernandez', 'Steven King', 'Betty Wright', 'Paul Lopez', 'Helen Hill',
+            'Edward Scott', 'Sandra Green', 'Brian Adams', 'Donna Baker', 'Ronald Gonzalez',
+            'Carol Nelson', 'Kevin Carter', 'Ruth Mitchell', 'Jacob Perez', 'Sharon Roberts',
+            'Gary Turner', 'Michelle Phillips', 'Nicholas Campbell', 'Emily Parker', 'Eric Evans',
+            'Kimberly Edwards', 'Jonathan Collins', 'Deborah Stewart', 'Stephen Sanchez', 'Dorothy Morris'
+        ];
+
+        function log(message, type = 'info') {
+            const logArea = document.getElementById('logArea');
+            const timestamp = new Date().toLocaleTimeString();
+            const logClass = type === 'error' ? 'error' : type === 'success' ? 'success' : type === 'warning' ? 'warning' : '';
+            logArea.innerHTML += `<span class="${logClass}">[${timestamp}] ${message}</span>\n`;
+            logArea.scrollTop = logArea.scrollHeight;
+        }
+
+        function updateStats() {
+            document.getElementById('totalRequests').textContent = stats.total;
+            document.getElementById('successCount').textContent = stats.success;
+            document.getElementById('errorCount').textContent = stats.errors;
+            
+            if (stats.responseTimes.length > 0) {
+                const avgTime = stats.responseTimes.reduce((a, b) => a + b, 0) / stats.responseTimes.length;
+                document.getElementById('avgResponseTime').textContent = Math.round(avgTime) + 'ms';
+            }
+        }
+
+        function updateProgress(current, total) {
+            const percentage = (current / total) * 100;
+            document.getElementById('progressFill').style.width = percentage + '%';
+        }
+
+        async function makeCheckInRequest(name, apiUrl, apiKey) {
+            const startTime = Date.now();
+            
+            try {
+                const response = await fetch(`${apiUrl}/functions/v1/checkin`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${apiKey}`
+                    },
+                    body: JSON.stringify({
+                        name: name,
+                        timestamp: new Date().toISOString(),
+                        deviceFingerprint: `test-${Math.random().toString(36).substr(2, 9)}`
+                    })
+                });
+
+                const responseTime = Date.now() - startTime;
+                stats.responseTimes.push(responseTime);
+
+                const result = await response.json();
+                
+                if (response.ok && result.success) {
+                    stats.success++;
+                    log(`✅ ${name}: Check-in successful (${responseTime}ms)`, 'success');
+                    return { success: true, responseTime, message: result.message };
+                } else {
+                    stats.errors++;
+                    log(`❌ ${name}: ${result.error || 'Unknown error'} (${responseTime}ms)`, 'error');
+                    return { success: false, responseTime, error: result.error };
+                }
+            } catch (error) {
+                const responseTime = Date.now() - startTime;
+                stats.errors++;
+                log(`💥 ${name}: Network error - ${error.message} (${responseTime}ms)`, 'error');
+                return { success: false, responseTime, error: error.message };
+            } finally {
+                stats.total++;
+                updateStats();
+            }
+        }
+
+        async function concurrentTest(apiUrl, apiKey, numRequests, concurrency) {
+            log(`🚀 Starting concurrent test: ${numRequests} requests with ${concurrency} concurrent users`);
+            
+            const batches = [];
+            for (let i = 0; i < numRequests; i += concurrency) {
+                const batch = [];
+                for (let j = 0; j < concurrency && (i + j) < numRequests; j++) {
+                    const name = testNames[(i + j) % testNames.length] + ` #${i + j + 1}`;
+                    batch.push(makeCheckInRequest(name, apiUrl, apiKey));
+                }
+                batches.push(batch);
+            }
+
+            for (let i = 0; i < batches.length; i++) {
+                if (testAborted) break;
+                
+                await Promise.all(batches[i]);
+                updateProgress(Math.min((i + 1) * concurrency, numRequests), numRequests);
+                
+                const delay = parseInt(document.getElementById('delay').value);
+                if (delay > 0) {
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                }
+            }
+        }
+
+        async function sequentialTest(apiUrl, apiKey, numRequests) {
+            log(`🔄 Starting sequential test: ${numRequests} requests`);
+            
+            for (let i = 0; i < numRequests; i++) {
+                if (testAborted) break;
+                
+                const name = testNames[i % testNames.length] + ` #${i + 1}`;
+                await makeCheckInRequest(name, apiUrl, apiKey);
+                updateProgress(i + 1, numRequests);
+                
+                const delay = parseInt(document.getElementById('delay').value);
+                if (delay > 0) {
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                }
+            }
+        }
+
+        async function duplicateTest(apiUrl, apiKey, numRequests) {
+            log(`🔁 Starting duplicate prevention test: ${numRequests} attempts with same names`);
+            
+            // First, create some initial check-ins
+            const uniqueNames = testNames.slice(0, 5);
+            log(`Creating initial check-ins for: ${uniqueNames.join(', ')}`);
+            
+            for (const name of uniqueNames) {
+                await makeCheckInRequest(name, apiUrl, apiKey);
+            }
+            
+            log(`Now testing duplicate prevention...`);
+            
+            // Then try to duplicate them
+            for (let i = 0; i < numRequests; i++) {
+                if (testAborted) break;
+                
+                const name = uniqueNames[i % uniqueNames.length];
+                await makeCheckInRequest(name, apiUrl, apiKey);
+                updateProgress(i + 1, numRequests);
+                
+                const delay = parseInt(document.getElementById('delay').value);
+                if (delay > 0) {
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                }
+            }
+        }
+
+        async function startStressTest() {
+            const apiUrl = document.getElementById('apiUrl').value.trim();
+            const apiKey = document.getElementById('apiKey').value.trim();
+            const testType = document.getElementById('testType').value;
+            const numRequests = parseInt(document.getElementById('numRequests').value);
+            const concurrency = parseInt(document.getElementById('concurrency').value);
+
+            if (!apiUrl || !apiKey) {
+                alert('Please enter API URL and API Key');
+                return;
+            }
+
+            testRunning = true;
+            testAborted = false;
+            document.getElementById('startTest').disabled = true;
+            document.getElementById('stopTest').disabled = false;
+
+            // Reset stats
+            stats = { total: 0, success: 0, errors: 0, responseTimes: [] };
+            updateStats();
+            updateProgress(0, numRequests);
+
+            log(`=== Starting ${testType} stress test ===`);
+            log(`Target: ${apiUrl}/functions/v1/checkin`);
+            
+            const startTime = Date.now();
+
+            try {
+                switch (testType) {
+                    case 'concurrent':
+                        await concurrentTest(apiUrl, apiKey, numRequests, concurrency);
+                        break;
+                    case 'sequential':
+                        await sequentialTest(apiUrl, apiKey, numRequests);
+                        break;
+                    case 'duplicate':
+                        await duplicateTest(apiUrl, apiKey, numRequests);
+                        break;
+                }
+            } catch (error) {
+                log(`💥 Test failed: ${error.message}`, 'error');
+            }
+
+            const totalTime = Date.now() - startTime;
+            const successRate = ((stats.success / stats.total) * 100).toFixed(1);
+            
+            log(`=== Test Completed ===`);
+            log(`Total time: ${totalTime}ms`);
+            log(`Success rate: ${successRate}%`);
+            log(`Requests per second: ${(stats.total / (totalTime / 1000)).toFixed(2)}`);
+
+            testRunning = false;
+            document.getElementById('startTest').disabled = false;
+            document.getElementById('stopTest').disabled = true;
+        }
+
+        function stopStressTest() {
+            testAborted = true;
+            log('🛑 Test stopped by user', 'warning');
+        }
+
+        function clearLogs() {
+            document.getElementById('logArea').innerHTML = '';
+        }
+
+        function generateTestData() {
+            log('📋 Available test names:');
+            testNames.forEach((name, index) => {
+                log(`${index + 1}. ${name}`);
+            });
+        }
+
+        // Initialize with sample data
+        document.addEventListener('DOMContentLoaded', function() {
+            log('🔧 Stress test tool loaded. Configure your settings and click "Start Stress Test"');
+            log('💡 Tip: Start with a small number of requests (10-20) to test your setup');
+        });
+    </script>
+</body>
+</html>

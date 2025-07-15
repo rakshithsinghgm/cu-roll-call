@@ -92,11 +92,20 @@ serve(async (req) => {
       .single()
 
     if (existingCheckin) {
-      const checkinTime = new Date(existingCheckin.check_in_time).toLocaleTimeString()
+      // Fix timezone issue - convert to local time properly
+      const checkinTime = new Date(existingCheckin.check_in_time)
+      const localTimeString = checkinTime.toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true,
+        timeZone: 'America/Chicago' // Change this to your gym's timezone
+      })
+      
       return new Response(
         JSON.stringify({ 
-          error: `${cleanName} already checked in today at ${checkinTime}`,
-          alreadyCheckedIn: true 
+          error: `${cleanName} already checked in today at ${localTimeString}`,
+          alreadyCheckedIn: true,
+          originalCheckInTime: existingCheckin.check_in_time
         }),
         { 
           status: 409, 

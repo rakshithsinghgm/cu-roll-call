@@ -236,8 +236,8 @@
 
     <script>
         // Configuration - Replace with your Supabase project details
-        const SUPABASE_URL = 'https://posidnbttxlbutscdhpm.supabase.co';
-        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBvc2lkbmJ0dHhsYnV0c2NkaHBtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI1OTkwMDYsImV4cCI6MjA2ODE3NTAwNn0.G_g7RCVktBr0EwhtBrmZRYAnPSZxR3FVxTzz6BqxOSY';
+        const SUPABASE_URL = 'YOUR_SUPABASE_URL';
+        const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
 
         // Generate device fingerprint for basic tracking
         function generateDeviceFingerprint() {
@@ -338,8 +338,19 @@
             submitBtn.innerHTML = '<span class="loading"></span>Checking in...';
             submitBtn.disabled = true;
 
+            // Set up timeout for the request (30 seconds)
+            const timeoutId = setTimeout(() => {
+                showMessage('Request timed out. Please try again.', 'error');
+                submitBtn.innerHTML = 'Check In Now';
+                submitBtn.disabled = false;
+            }, 30000);
+
             try {
                 const deviceFingerprint = generateDeviceFingerprint();
+                
+                // Create AbortController for request timeout
+                const controller = new AbortController();
+                const timeoutSignal = setTimeout(() => controller.abort(), 25000); // 25 second timeout
                 
                 const response = await fetch(`${SUPABASE_URL}/functions/v1/checkin`, {
                     method: 'POST',
@@ -352,12 +363,24 @@
                         deviceFingerprint: deviceFingerprint,
                         userAgent: navigator.userAgent,
                         timestamp: new Date().toISOString()
-                    })
+                    }),
+                    signal: controller.signal
                 });
+
+                // Clear the timeout
+                clearTimeout(timeoutSignal);
+                clearTimeout(timeoutId);
+
+                // Check if response is ok
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('HTTP Error:', response.status, errorText);
+                    throw new Error(`HTTP ${response.status}: ${errorText}`);
+                }
 
                 const result = await response.json();
 
-                if (response.ok && result.success) {
+                if (result.success) {
                     showMessage(`✅ Welcome ${name}! Successfully checked in at ${new Date().toLocaleTimeString()}`, 'success');
                     submitBtn.innerHTML = '✅ Checked In Today';
                     
@@ -380,9 +403,23 @@
                     submitBtn.innerHTML = 'Check In Now';
                     submitBtn.disabled = false;
                 }
+
             } catch (error) {
+                clearTimeout(timeoutId);
                 console.error('Check-in error:', error);
-                showMessage('Network error. Please check your connection and try again.', 'error');
+                
+                // Handle different types of errors
+                let errorMessage = 'Unknown error occurred. Please try again.';
+                
+                if (error.name === 'AbortError') {
+                    errorMessage = 'Request timed out. Please check your connection and try again.';
+                } else if (error.message.includes('Failed to fetch')) {
+                    errorMessage = 'Network error. Please check your internet connection.';
+                } else if (error.message.includes('HTTP')) {
+                    errorMessage = 'Server error. Please try again in a moment.';
+                }
+                
+                showMessage(errorMessage, 'error');
                 submitBtn.innerHTML = 'Check In Now';
                 submitBtn.disabled = false;
             }
