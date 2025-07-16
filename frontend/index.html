@@ -521,10 +521,37 @@
                 clearTimeout(timeoutSignal);
                 clearTimeout(timeoutId);
 
+                // Special handling for different HTTP error types
                 if (!response.ok) {
-                    const errorText = await response.text();
-                    console.error('HTTP Error:', response.status, errorText);
-                    throw new Error(`HTTP ${response.status}: ${errorText}`);
+                    let errorResult;
+                    
+                    try {
+                        // Try to parse JSON response for structured errors
+                        const errorText = await response.text();
+                        errorResult = JSON.parse(errorText);
+                    } catch {
+                        // If JSON parsing fails, treat as generic server error
+                        throw new Error(`HTTP ${response.status}: Server error`);
+                    }
+
+                    // Handle 404 errors with special student not found case
+                    if (response.status === 404 && errorResult.studentNotFound) {
+                        showMessage('Sorry, student profile missing. Please contact your instructor.', 'error');
+                        submitBtn.innerHTML = 'Check In Now';
+                        submitBtn.disabled = false;
+                        return;
+                    }
+
+                    // Handle other structured errors from the backend
+                    if (errorResult.error) {
+                        showMessage(errorResult.error, 'error');
+                        submitBtn.innerHTML = 'Check In Now';
+                        submitBtn.disabled = false;
+                        return;
+                    }
+
+                    // Generic server error for other HTTP errors
+                    throw new Error(`HTTP ${response.status}: Server error`);
                 }
 
                 const result = await response.json();
