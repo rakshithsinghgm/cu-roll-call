@@ -9,9 +9,13 @@ const corsHeaders = {
 
 interface CheckinRequest {
   name: string;
-  deviceFingerprint?: string;
-  userAgent?: string;
+  classType: 'gi' | 'no-gi';
+  timeAttendedMinutes: number;
   timestamp: string;
+}
+
+interface StudentSearchRequest {
+  query: string;
 }
 
 serve(async (req) => {
@@ -32,165 +36,210 @@ serve(async (req) => {
       }
     )
 
-    if (req.method !== 'POST') {
+    const url = new URL(req.url)
+    const path = url.pathname
+
+    // Handle student search endpoint
+    if (path === '/functions/v1/search-students' && req.method === 'POST') {
+      const { query }: StudentSearchRequest = await req.json()
+      
+      if (!query || query.trim().length < 2) {
+        return new Response(
+          JSON.stringify({ students: [] }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
+      // Search students with fuzzy matching
+      const { data: students, error } = await supabaseClient
+        .from('students')
+        .select('name')
+        .eq('is_active', true)
+        .or(`name.ilike.%${query}%,name.ilike.${query}%`)
+        .order('name')
+        .limit(10)
+
+      if (error) {
+        console.error('Student search error:', error)
+        return new Response(
+          JSON.stringify({ students: [] }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
       return new Response(
-        JSON.stringify({ error: 'Method not allowed' }),
-        { 
-          status: 405, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
+        JSON.stringify({ students: students || [] }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
-    const requestData: CheckinRequest = await req.json()
-    const { name, deviceFingerprint, userAgent, timestamp } = requestData
+    // Handle check-in endpoint
+    if (path === '/functions/v1/checkin' && req.method === 'POST') {
+      const requestData: CheckinRequest = await req.json()
+      const { name, classType, timeAttendedMinutes, timestamp } = requestData
 
-    // Validate required fields
-    if (!name || !name.trim()) {
-      return new Response(
-        JSON.stringify({ error: 'Name is required' }),
-        { 
-          status: 400, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      // Validate required fields
+      if (!name || !name.trim()) {
+        return new Response(
+          JSON.stringify({ error: 'Name is required' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
+      if (!classType || !['gi', 'no-gi'].includes(classType)) {
+        return new Response(
+          JSON.stringify({ error: 'Valid class type is required (gi or no-gi)' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
+      if (!timeAttendedMinutes || timeAttendedMinutes < 1 || timeAttendedMinutes > 180) {
+        return new Response(
+          JSON.stringify({ error: 'Time attended must be between 1 and 180 minutes' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
+      const cleanName = name.trim()
+
+      // Verify student exists in database (exact match required)
+      const { data: student, error: studentError } = await supabaseClient
+        .from('students')
+        .select('id, name')
+        .eq('name', cleanName)
+        .eq('is_active', true)
+        .single()
+
+      if (studentError || !student) {
+        return new Response(
+          JSON.stringify({ 
+            error: 'Student not found in database. Please contact your instructor to add you to the system.',
+            studentNotFound: true 
+          }),
+          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
+      // Check existing check-ins for today
+      const today = new Date().toISOString().split('T')[0] // YYYY-MM-DD format
+      
+      const { data: existingCheckins, error: checkinError } = await supabaseClient
+        .from('attendance')
+        .select('id, check_in_time, class_type')
+        .eq('student_name', cleanName)
+        .gte('check_in_time', `${today}T00:00:00.000Z`)
+        .lt('check_in_time', `${today}T23:59:59.999Z`)
+        .order('check_in_time', { ascending: false })
+
+      if (checkinError) {
+        console.error('Check-in query error:', checkinError)
+        return new Response(
+          JSON.stringify({ error: 'Failed to check existing attendance' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
+      // Check if already reached maximum (2 check-ins per day)
+      if (existingCheckins && existingCheckins.length >= 2) {
+        const checkinTimes = existingCheckins.map(c => 
+          new Date(c.check_in_time).toLocaleTimeString('en-US', {
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: true,
+            timeZone: 'America/Chicago' // Change this to your gym's timezone
+          })
+        )
+        
+        return new Response(
+          JSON.stringify({ 
+            error: `Maximum 2 check-ins per day reached. Today's check-ins: ${checkinTimes.join(', ')}`,
+            maxCheckinsReached: true 
+          }),
+          { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
+      // Check 30-minute minimum gap between check-ins
+      if (existingCheckins && existingCheckins.length > 0) {
+        const lastCheckinTime = new Date(existingCheckins[0].check_in_time)
+        const currentTime = new Date(timestamp)
+        const timeDifferenceMinutes = (currentTime.getTime() - lastCheckinTime.getTime()) / (1000 * 60)
+
+        if (timeDifferenceMinutes < 30) {
+          const waitTime = Math.ceil(30 - timeDifferenceMinutes)
+          const lastCheckinTimeStr = lastCheckinTime.toLocaleTimeString('en-US', {
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: true,
+            timeZone: 'America/Chicago' // Change this to your gym's timezone
+          })
+          
+          return new Response(
+            JSON.stringify({ 
+              error: `Please wait ${waitTime} more minutes between check-ins. Last check-in: ${lastCheckinTimeStr}`,
+              waitTimeMinutes: waitTime 
+            }),
+            { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          )
         }
-      )
-    }
+      }
 
-    // Clean and validate name
-    const cleanName = name.trim()
-    if (cleanName.length < 2) {
-      return new Response(
-        JSON.stringify({ error: 'Please enter your complete name' }),
-        { 
-          status: 400, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      )
-    }
+      // Insert attendance record
+      const { data: attendance, error: insertError } = await supabaseClient
+        .from('attendance')
+        .insert({
+          student_id: student.id,
+          student_name: cleanName,
+          class_type: classType,
+          time_attended_minutes: timeAttendedMinutes,
+          check_in_time: new Date(timestamp).toISOString()
+        })
+        .select()
+        .single()
 
-    // Basic name validation (letters, spaces, hyphens, apostrophes, periods)
-    const nameRegex = /^[a-zA-Z\s\-'\.]+$/
-    if (!nameRegex.test(cleanName)) {
-      return new Response(
-        JSON.stringify({ error: 'Please enter a valid name' }),
-        { 
-          status: 400, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      )
-    }
+      if (insertError) {
+        console.error('Insert attendance error:', insertError)
+        return new Response(
+          JSON.stringify({ error: 'Failed to record attendance' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
 
-    // Check if already checked in today using time range query
-    const today = new Date().toISOString().split('T')[0] // YYYY-MM-DD format
-    
-    const { data: existingCheckin, error: checkinError } = await supabaseClient
-      .from('attendance')
-      .select('id, check_in_time')
-      .eq('student_name', cleanName)
-      .gte('check_in_time', `${today}T00:00:00.000Z`)
-      .lt('check_in_time', `${today}T23:59:59.999Z`)
-      .single()
-
-    if (existingCheckin) {
-      // Fix timezone issue - convert to local time properly
-      const checkinTime = new Date(existingCheckin.check_in_time)
-      const localTimeString = checkinTime.toLocaleTimeString('en-US', {
+      // Success response
+      const checkinCount = (existingCheckins?.length || 0) + 1
+      const checkinTimeStr = new Date(attendance.check_in_time).toLocaleTimeString('en-US', {
         hour: '2-digit',
         minute: '2-digit',
         hour12: true,
         timeZone: 'America/Chicago' // Change this to your gym's timezone
       })
-      
+
       return new Response(
-        JSON.stringify({ 
-          error: `${cleanName} already checked in today at ${localTimeString}`,
-          alreadyCheckedIn: true,
-          originalCheckInTime: existingCheckin.check_in_time
+        JSON.stringify({
+          success: true,
+          message: `Check-in successful! (${checkinCount}/2 today)`,
+          timestamp: attendance.check_in_time,
+          studentName: cleanName,
+          classType: classType,
+          timeAttended: timeAttendedMinutes,
+          checkinCount: checkinCount,
+          checkinTime: checkinTimeStr
         }),
-        { 
-          status: 409, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
-    // Get client IP (for basic tracking, not for security)
-    // Handle x-forwarded-for header which can contain multiple IPs
-    const forwardedFor = req.headers.get('x-forwarded-for')
-    const realIP = req.headers.get('x-real-ip')
-    
-    let clientIP = 'unknown'
-    if (forwardedFor) {
-      // x-forwarded-for can be "ip1,ip2,ip3" - take the first one
-      clientIP = forwardedFor.split(',')[0].trim()
-    } else if (realIP) {
-      clientIP = realIP.trim()
-    }
-    
-    // Validate IP format (basic check)
-    const ipRegex = /^(\d{1,3}\.){3}\d{1,3}$/
-    if (!ipRegex.test(clientIP)) {
-      clientIP = 'unknown'
-    }
-
-    // Insert attendance record
-    const { data: attendance, error: insertError } = await supabaseClient
-      .from('attendance')
-      .insert({
-        student_id: null, // We don't require student registration
-        student_name: cleanName,
-        ip_address: clientIP,
-        user_agent: userAgent?.substring(0, 500), // Limit length
-        device_fingerprint: deviceFingerprint?.substring(0, 100), // Limit length
-        check_in_time: new Date(timestamp).toISOString()
-      })
-      .select()
-      .single()
-
-    if (insertError) {
-      console.error('Insert attendance error:', insertError)
-      
-      // Check if it's a duplicate entry error
-      if (insertError.code === '23505') {
-        return new Response(
-          JSON.stringify({ error: 'Already checked in today' }),
-          { 
-            status: 409, 
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-          }
-        )
-      }
-      
-      return new Response(
-        JSON.stringify({ error: 'Failed to record attendance' }),
-        { 
-          status: 500, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      )
-    }
-
-    // Success response
+    // Invalid endpoint
     return new Response(
-      JSON.stringify({
-        success: true,
-        message: 'Check-in successful',
-        timestamp: attendance.check_in_time,
-        studentName: cleanName
-      }),
-      { 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      }
+      JSON.stringify({ error: 'Endpoint not found' }),
+      { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
 
   } catch (error) {
     console.error('Unexpected error:', error)
     return new Response(
       JSON.stringify({ error: 'Internal server error' }),
-      { 
-        status: 500, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      }
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   }
 })

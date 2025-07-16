@@ -13,7 +13,7 @@
 
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #ff8c00 0%, #ff6b35 100%);
             min-height: 100vh;
             display: flex;
             align-items: center;
@@ -28,21 +28,22 @@
             border-radius: 20px;
             box-shadow: 0 20px 40px rgba(0,0,0,0.1);
             width: 100%;
-            max-width: 400px;
+            max-width: 550px;
             text-align: center;
         }
 
         .logo {
             font-size: 2.5rem;
             font-weight: bold;
-            color: #667eea;
+            color: #ff8c00;
             margin-bottom: 0.5rem;
         }
 
         .subtitle {
-            color: #666;
+            color: #1a237e;
             margin-bottom: 2rem;
             font-size: 1.1rem;
+            font-weight: 600;
         }
 
         .form-group {
@@ -54,10 +55,10 @@
             display: block;
             margin-bottom: 0.5rem;
             font-weight: 600;
-            color: #555;
+            color: #1a237e;
         }
 
-        input[type="text"] {
+        input[type="text"], input[type="number"], select {
             width: 100%;
             padding: 1rem;
             border: 2px solid #e1e5e9;
@@ -66,16 +67,21 @@
             transition: border-color 0.3s ease;
         }
 
-        input[type="text"]:focus {
+        input[type="text"]:focus, input[type="number"]:focus, select:focus {
             outline: none;
-            border-color: #667eea;
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+            border-color: #ff8c00;
+            box-shadow: 0 0 0 3px rgba(255, 140, 0, 0.1);
+        }
+
+        select {
+            cursor: pointer;
+            background-color: white;
         }
 
         .btn {
             width: 100%;
             padding: 1rem;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #ff8c00 0%, #ff6b35 100%);
             color: white;
             border: none;
             border-radius: 10px;
@@ -87,7 +93,7 @@
 
         .btn:hover {
             transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+            box-shadow: 0 8px 25px rgba(255, 140, 0, 0.3);
         }
 
         .btn:disabled {
@@ -141,28 +147,28 @@
         }
 
         .instructions {
-            background-color: #f8f9fa;
+            background-color: #fff3e0;
             padding: 1rem;
             border-radius: 8px;
             margin-bottom: 1.5rem;
             text-align: left;
-            border-left: 4px solid #667eea;
+            border-left: 4px solid #ff8c00;
         }
 
         .instructions h4 {
-            color: #667eea;
+            color: #ff8c00;
             margin-bottom: 0.5rem;
         }
 
         .instructions p {
-            color: #666;
+            color: #1a237e;
             font-size: 0.9rem;
             line-height: 1.4;
         }
 
         .form-hint {
             font-size: 0.8rem;
-            color: #888;
+            color: #666;
             margin-top: 0.3rem;
         }
 
@@ -175,7 +181,7 @@
         }
 
         .recent-checkins h4 {
-            color: #667eea;
+            color: #ff8c00;
             margin-bottom: 0.5rem;
             font-size: 0.9rem;
         }
@@ -195,6 +201,58 @@
         .recent-item:last-child {
             border-bottom: none;
         }
+
+        .autocomplete-container {
+            position: relative;
+        }
+
+        .autocomplete-suggestions {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 2px solid #e1e5e9;
+            border-top: none;
+            border-radius: 0 0 10px 10px;
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 1000;
+            display: none;
+        }
+
+        .autocomplete-suggestion {
+            padding: 0.75rem;
+            cursor: pointer;
+            border-bottom: 1px solid #f0f0f0;
+            color: #333;
+        }
+
+        .autocomplete-suggestion:hover, .autocomplete-suggestion.selected {
+            background-color: #fff3e0;
+            color: #ff8c00;
+        }
+
+        .autocomplete-suggestion:last-child {
+            border-bottom: none;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+        }
+
+        @media (max-width: 580px) {
+            .form-row {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+        }
+
+        .required {
+            color: #dc3545;
+        }
     </style>
 </head>
 <body>
@@ -203,22 +261,50 @@
         <div class="subtitle">Jiu Jitsu Attendance Tracker</div>
         
         <div class="instructions">
-            <h4>Quick Check-In:</h4>
-            <p>Just enter your full name and hit check-in. You can only check in once per day.</p>
+            <h4>Check-in Instructions:</h4>
+            <p>Enter your name, select class type, and time attended. You can check in up to 2 times per day with 30 minutes between check-ins.</p>
         </div>
 
         <form id="checkinForm">
             <div class="form-group">
-                <label for="name">Full Name</label>
-                <input 
-                    type="text" 
-                    id="name" 
-                    name="name" 
-                    placeholder="Enter your full name"
-                    required 
-                    autocomplete="name"
-                >
-                <div class="form-hint">Use your name as the instructor knows it</div>
+                <label for="name">Student Name <span class="required">*</span></label>
+                <div class="autocomplete-container">
+                    <input 
+                        type="text" 
+                        id="name" 
+                        name="name" 
+                        placeholder="Start typing your name..."
+                        required 
+                        autocomplete="off"
+                    >
+                    <div id="autocompleteSuggestions" class="autocomplete-suggestions"></div>
+                </div>
+                <div class="form-hint">Your name must be registered in the system</div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="classType">Class Type <span class="required">*</span></label>
+                    <select id="classType" name="classType" required>
+                        <option value="">Select class type</option>
+                        <option value="gi">Gi</option>
+                        <option value="no-gi">No-Gi</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="timeAttended">Time Attended (minutes) <span class="required">*</span></label>
+                    <input 
+                        type="number" 
+                        id="timeAttended" 
+                        name="timeAttended" 
+                        placeholder="90"
+                        min="1" 
+                        max="180" 
+                        required
+                    >
+                    <div class="form-hint">1-180 minutes (1-3 hours)</div>
+                </div>
             </div>
             
             <button type="submit" class="btn" id="submitBtn">
@@ -236,20 +322,13 @@
 
     <script>
         // Configuration - Replace with your Supabase project details
-        const SUPABASE_URL = 'https://posidnbttxlbutscdhpm.supabase.co';
-        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBvc2lkbmJ0dHhsYnV0c2NkaHBtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI1OTkwMDYsImV4cCI6MjA2ODE3NTAwNn0.G_g7RCVktBr0EwhtBrmZRYAnPSZxR3FVxTzz6BqxOSY';
+        const SUPABASE_URL = 'YOUR_SUPABASE_URL';
+        const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
 
-        // Generate device fingerprint for basic tracking
-        function generateDeviceFingerprint() {
-            const fingerprint = {
-                screen: `${screen.width}x${screen.height}`,
-                timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-                language: navigator.language,
-                timestamp: Date.now()
-            };
-            
-            return btoa(JSON.stringify(fingerprint)).substring(0, 50);
-        }
+        // Autocomplete and validation variables
+        let students = [];
+        let selectedStudentIndex = -1;
+        let currentSuggestions = [];
 
         // Show message to user
         function showMessage(text, type = 'info') {
@@ -265,25 +344,100 @@
             messageEl.classList.add('hidden');
         }
 
+        // Search students with debouncing
+        let searchTimeout;
+        async function searchStudents(query) {
+            if (query.length < 2) {
+                hideAutocomplete();
+                return;
+            }
+
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(async () => {
+                try {
+                    const response = await fetch(`${SUPABASE_URL}/functions/v1/search-students`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+                        },
+                        body: JSON.stringify({ query: query })
+                    });
+
+                    const result = await response.json();
+                    currentSuggestions = result.students || [];
+                    showAutocomplete(currentSuggestions);
+                } catch (error) {
+                    console.error('Student search error:', error);
+                    hideAutocomplete();
+                }
+            }, 300);
+        }
+
+        // Show autocomplete suggestions
+        function showAutocomplete(suggestions) {
+            const container = document.getElementById('autocompleteSuggestions');
+            
+            if (suggestions.length === 0) {
+                hideAutocomplete();
+                return;
+            }
+
+            container.innerHTML = suggestions.map((student, index) => 
+                `<div class="autocomplete-suggestion" data-index="${index}" data-name="${student.name}">
+                    ${student.name}
+                </div>`
+            ).join('');
+
+            container.style.display = 'block';
+            selectedStudentIndex = -1;
+        }
+
+        // Hide autocomplete suggestions
+        function hideAutocomplete() {
+            document.getElementById('autocompleteSuggestions').style.display = 'none';
+            selectedStudentIndex = -1;
+        }
+
+        // Select autocomplete suggestion
+        function selectSuggestion(name) {
+            document.getElementById('name').value = name;
+            hideAutocomplete();
+            clearMessage();
+        }
+
         // Validate form inputs
-        function validateForm(name) {
+        function validateForm(name, classType, timeAttended) {
             if (!name.trim()) {
-                showMessage('Please enter your full name', 'error');
+                showMessage('Please enter your name', 'error');
                 return false;
             }
-            
-            if (name.trim().length < 2) {
-                showMessage('Please enter your complete name', 'error');
+
+            // Check if name exists in current suggestions or exact match
+            const exactMatch = currentSuggestions.some(student => 
+                student.name.toLowerCase() === name.trim().toLowerCase()
+            );
+
+            if (!exactMatch && currentSuggestions.length > 0) {
+                showMessage('Please select a name from the suggestions', 'error');
                 return false;
             }
-            
-            // Basic name validation (letters, spaces, hyphens, apostrophes)
-            const nameRegex = /^[a-zA-Z\s\-'\.]+$/;
-            if (!nameRegex.test(name.trim())) {
-                showMessage('Please enter a valid name (letters only)', 'error');
+
+            if (!classType) {
+                showMessage('Please select a class type', 'error');
                 return false;
             }
-            
+
+            if (!timeAttended || timeAttended < 1 || timeAttended > 180) {
+                showMessage('Time attended must be between 1 and 180 minutes', 'error');
+                return false;
+            }
+
+            if (timeAttended > 120) {
+                const confirmed = confirm(`${timeAttended} minutes (${(timeAttended/60).toFixed(1)} hours) seems like a long time. Are you sure this is correct?`);
+                if (!confirmed) return false;
+            }
+
             return true;
         }
 
@@ -292,7 +446,7 @@
             try {
                 const today = new Date().toISOString().split('T')[0];
                 
-                const response = await fetch(`${SUPABASE_URL}/rest/v1/attendance?check_in_date=eq.${today}&select=student_name,check_in_time&order=check_in_time.desc&limit=10`, {
+                const response = await fetch(`${SUPABASE_URL}/rest/v1/attendance?check_in_date=eq.${today}&select=student_name,check_in_time,class_type,time_attended_minutes&order=check_in_time.desc&limit=10`, {
                     headers: {
                         'apikey': SUPABASE_ANON_KEY,
                         'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
@@ -305,14 +459,13 @@
                         const recentList = document.getElementById('recentList');
                         recentList.innerHTML = checkins.map(checkin => {
                             const time = new Date(checkin.check_in_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                            return `<div class="recent-item">${checkin.student_name} - ${time}</div>`;
+                            return `<div class="recent-item">${checkin.student_name} - ${checkin.class_type} - ${checkin.time_attended_minutes}min - ${time}</div>`;
                         }).join('');
                         
                         document.getElementById('recentCheckins').classList.remove('hidden');
                     }
                 }
             } catch (error) {
-                // Silently fail - not critical functionality
                 console.log('Could not load recent check-ins:', error);
             }
         }
@@ -323,22 +476,23 @@
             
             const submitBtn = document.getElementById('submitBtn');
             const nameInput = document.getElementById('name');
+            const classTypeInput = document.getElementById('classType');
+            const timeAttendedInput = document.getElementById('timeAttended');
             
             const name = nameInput.value.trim();
+            const classType = classTypeInput.value;
+            const timeAttended = parseInt(timeAttendedInput.value);
             
-            // Clear any previous messages
             clearMessage();
+            hideAutocomplete();
             
-            // Validate inputs
-            if (!validateForm(name)) {
+            if (!validateForm(name, classType, timeAttended)) {
                 return;
             }
             
-            // Show loading state
             submitBtn.innerHTML = '<span class="loading"></span>Checking in...';
             submitBtn.disabled = true;
 
-            // Set up timeout for the request (30 seconds)
             const timeoutId = setTimeout(() => {
                 showMessage('Request timed out. Please try again.', 'error');
                 submitBtn.innerHTML = 'Check In Now';
@@ -346,11 +500,8 @@
             }, 30000);
 
             try {
-                const deviceFingerprint = generateDeviceFingerprint();
-                
-                // Create AbortController for request timeout
                 const controller = new AbortController();
-                const timeoutSignal = setTimeout(() => controller.abort(), 25000); // 25 second timeout
+                const timeoutSignal = setTimeout(() => controller.abort(), 25000);
                 
                 const response = await fetch(`${SUPABASE_URL}/functions/v1/checkin`, {
                     method: 'POST',
@@ -360,18 +511,16 @@
                     },
                     body: JSON.stringify({
                         name: name,
-                        deviceFingerprint: deviceFingerprint,
-                        userAgent: navigator.userAgent,
+                        classType: classType,
+                        timeAttendedMinutes: timeAttended,
                         timestamp: new Date().toISOString()
                     }),
                     signal: controller.signal
                 });
 
-                // Clear the timeout
                 clearTimeout(timeoutSignal);
                 clearTimeout(timeoutId);
 
-                // Check if response is ok
                 if (!response.ok) {
                     const errorText = await response.text();
                     console.error('HTTP Error:', response.status, errorText);
@@ -381,22 +530,23 @@
                 const result = await response.json();
 
                 if (result.success) {
-                    showMessage(`✅ Welcome ${name}! Successfully checked in at ${new Date().toLocaleTimeString()}`, 'success');
-                    submitBtn.innerHTML = '✅ Checked In Today';
+                    showMessage(`✅ ${result.message} Class: ${classType}, Time: ${timeAttended} min, Check-in: ${result.checkinTime}`, 'success');
+                    submitBtn.innerHTML = '✅ Checked In';
                     
-                    // Refresh recent check-ins list
                     setTimeout(() => {
                         loadRecentCheckins();
                     }, 1000);
                     
-                    // Clear form for next user (after a delay)
                     setTimeout(() => {
                         nameInput.value = '';
+                        classTypeInput.value = '';
+                        timeAttendedInput.value = '';
                         clearMessage();
                         submitBtn.innerHTML = 'Check In Now';
                         submitBtn.disabled = false;
                         nameInput.focus();
-                    }, 4000);
+                        currentSuggestions = [];
+                    }, 5000);
                     
                 } else {
                     showMessage(result.error || 'Check-in failed. Please try again.', 'error');
@@ -408,7 +558,6 @@
                 clearTimeout(timeoutId);
                 console.error('Check-in error:', error);
                 
-                // Handle different types of errors
                 let errorMessage = 'Unknown error occurred. Please try again.';
                 
                 if (error.name === 'AbortError') {
@@ -427,17 +576,60 @@
 
         // Initialize when page loads
         document.addEventListener('DOMContentLoaded', function() {
-            document.getElementById('checkinForm').addEventListener('submit', handleSubmit);
-            document.getElementById('name').focus(); // Focus on name field
-            
-            // Load recent check-ins
-            loadRecentCheckins();
-            
-            // Add real-time validation feedback
+            const form = document.getElementById('checkinForm');
             const nameInput = document.getElementById('name');
+            const suggestionsContainer = document.getElementById('autocompleteSuggestions');
+
+            form.addEventListener('submit', handleSubmit);
+            nameInput.focus();
+            loadRecentCheckins();
+
+            // Name input events
             nameInput.addEventListener('input', function() {
                 clearMessage();
+                searchStudents(this.value);
             });
+
+            nameInput.addEventListener('keydown', function(e) {
+                const suggestions = document.querySelectorAll('.autocomplete-suggestion');
+                
+                if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    selectedStudentIndex = Math.min(selectedStudentIndex + 1, suggestions.length - 1);
+                    updateSelectedSuggestion();
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    selectedStudentIndex = Math.max(selectedStudentIndex - 1, -1);
+                    updateSelectedSuggestion();
+                } else if (e.key === 'Enter' && selectedStudentIndex >= 0) {
+                    e.preventDefault();
+                    const selectedSuggestion = suggestions[selectedStudentIndex];
+                    selectSuggestion(selectedSuggestion.dataset.name);
+                } else if (e.key === 'Escape') {
+                    hideAutocomplete();
+                }
+            });
+
+            // Autocomplete click events
+            suggestionsContainer.addEventListener('click', function(e) {
+                if (e.target.classList.contains('autocomplete-suggestion')) {
+                    selectSuggestion(e.target.dataset.name);
+                }
+            });
+
+            // Hide autocomplete when clicking outside
+            document.addEventListener('click', function(e) {
+                if (!nameInput.contains(e.target) && !suggestionsContainer.contains(e.target)) {
+                    hideAutocomplete();
+                }
+            });
+
+            function updateSelectedSuggestion() {
+                const suggestions = document.querySelectorAll('.autocomplete-suggestion');
+                suggestions.forEach((suggestion, index) => {
+                    suggestion.classList.toggle('selected', index === selectedStudentIndex);
+                });
+            }
         });
     </script>
 </body>
