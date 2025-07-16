@@ -36,12 +36,22 @@ serve(async (req) => {
       }
     )
 
-    const url = new URL(req.url)
-    const path = url.pathname
+    if (req.method !== 'POST') {
+      return new Response(
+        JSON.stringify({ error: 'Method not allowed' }),
+        { 
+          status: 405, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      )
+    }
 
-    // Handle student search endpoint
-    if (path === '/functions/v1/search-students' && req.method === 'POST') {
-      const { query }: StudentSearchRequest = await req.json()
+    const requestData = await req.json()
+    
+    // Check if this is a student search request
+    if (requestData.query !== undefined) {
+      // Handle student search
+      const { query }: StudentSearchRequest = requestData
       
       if (!query || query.trim().length < 2) {
         return new Response(
@@ -73,10 +83,8 @@ serve(async (req) => {
       )
     }
 
-    // Handle check-in endpoint
-    if (path === '/functions/v1/checkin' && req.method === 'POST') {
-      const requestData: CheckinRequest = await req.json()
-      const { name, classType, timeAttendedMinutes, timestamp } = requestData
+    // Handle check-in request
+    const { name, classType, timeAttendedMinutes, timestamp } = requestData as CheckinRequest
 
       // Validate required fields
       if (!name || !name.trim()) {
@@ -227,13 +235,6 @@ serve(async (req) => {
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
-    }
-
-    // Invalid endpoint
-    return new Response(
-      JSON.stringify({ error: 'Endpoint not found' }),
-      { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    )
 
   } catch (error) {
     console.error('Unexpected error:', error)
