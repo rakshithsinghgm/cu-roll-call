@@ -20,14 +20,11 @@ CREATE TABLE IF NOT EXISTS attendance (
     student_id UUID NOT NULL REFERENCES students(id) ON DELETE CASCADE,
     student_name VARCHAR(100) NOT NULL,
     class_type class_type_enum NOT NULL,
-    time_attended_minutes INTEGER NOT NULL CHECK (time_attended_minutes >= 1 AND time_attended_minutes <= 180),
+    time_attended_minutes INTEGER NOT NULL CHECK (time_attended_minutes IN (30, 60, 90)),
     check_in_time TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     check_in_date DATE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
-
--- Enable trigram extension for fuzzy name matching
-CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
 -- Create indexes for performance
 CREATE INDEX IF NOT EXISTS idx_attendance_student_id ON attendance(student_id);
@@ -36,6 +33,9 @@ CREATE INDEX IF NOT EXISTS idx_attendance_student_name ON attendance(student_nam
 CREATE INDEX IF NOT EXISTS idx_attendance_class_type ON attendance(class_type);
 CREATE INDEX IF NOT EXISTS idx_students_name ON students(name);
 CREATE INDEX IF NOT EXISTS idx_students_name_search ON students USING gin(name gin_trgm_ops);
+
+-- Enable trigram extension for fuzzy name matching
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
 -- Function to set check_in_date from check_in_time
 CREATE OR REPLACE FUNCTION set_check_in_date()
