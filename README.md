@@ -1,5 +1,8 @@
 # 🥋 CU Roll Call - Jiu Jitsu Attendance Tracker
 A modern, simple, and robust attendance tracking system designed specifically for martial arts gyms. Students scan a QR code, enter their details, and check in instantly with real-time validation and duplicate prevention.
+
+https://cu-roll-call.vercel.app/
+
 # ✨ Features
 
 ## 🎯 Core Functionality
@@ -89,40 +92,29 @@ supabase functions deploy checkin
 ```
 
 ```text
-3. Frontend Deployment
+3. Web App Deployment
 bash# Create frontend repository
-mkdir cu-roll-call-frontend
-cd cu-roll-call-frontend
+git clone https://github.com/rakshithsinghgm/cu-roll-call
+cd cu-roll-call
 
+# Frontend Config
 # Create index.html with frontend code
 # Update Supabase configuration:
 # const SUPABASE_URL = 'https://your-project.supabase.co';
 # const SUPABASE_ANON_KEY = 'your-anon-key';
 
-# Deploy to GitHub and Vercel
-git init
-git add .
-git commit -m "Initial commit"
-git remote add origin https://github.com/yourusername/cu-roll-call-frontend.git
-git push -u origin main
 
-# Import to Vercel and deploy
+# Frontend code - roll-call/frontend/index.html
+
+# Import to Vercel and deploy (push to main branch)
+git add .
+git commit -m "commit message"
+git push origin master
 ```
 
 ```text
 4. Generate QR Code
-bash# Create QR code generator
-mkdir qr-code-generator
-cd qr-code-generator
-
-# Install dependencies
-python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
-pip install qrcode[pil]
-
-# Generate QR code
-python generate_qr.py
-# Update WEBSITE_URL with your Vercel deployment URL
+# To Do
 ```
 
 ## 📱 Usage
