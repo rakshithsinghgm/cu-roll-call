@@ -67,15 +67,6 @@ serve(async (req) => {
     }
 
     // 4. Enforce 30-minute interval
-    if (checkinsToday.length > 0) {
-      const lastCheckin = new Date(checkinsToday[0].check_in_time)
-      const now = new Date(timestamp || new Date().toISOString())
-      const minutesDiff = (now.getTime() - lastCheckin.getTime()) / (1000 * 60)
-
-      if (minutesDiff < 30) {
-        return withCORSHeaders({ error: 'You must wait 30 minutes between check-ins.' }, 400)
-      }
-    }
 
     // 5. Insert check-in
     const { error: insertError } = await supabase.from('attendance').insert({
