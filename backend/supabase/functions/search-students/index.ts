@@ -1,4 +1,3 @@
-// supabase/functions/search-students/index.ts
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1'
 
@@ -8,17 +7,15 @@ const corsHeaders = {
 }
 
 interface StudentSearchRequest {
-  query: string;
+  query: string
 }
 
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
   try {
-    // Initialize Supabase client
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
@@ -32,15 +29,12 @@ serve(async (req) => {
     if (req.method !== 'POST') {
       return new Response(
         JSON.stringify({ error: 'Method not allowed' }),
-        { 
-          status: 405, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
+        { status: 405, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
     const { query }: StudentSearchRequest = await req.json()
-    
+
     if (!query || query.trim().length < 2) {
       return new Response(
         JSON.stringify({ students: [] }),
@@ -48,14 +42,14 @@ serve(async (req) => {
       )
     }
 
-    const cleanQuery = query.trim()
+    const cleanQuery = query.trim().toLowerCase()
 
-    // Search students with fuzzy matching using multiple strategies
+    // ✅ Simple fuzzy search using pg_trgm + ilike with one wildcard
     const { data: students, error } = await supabaseClient
       .from('students')
       .select('name')
+      .ilike('name', `%${cleanQuery}%`)
       .eq('is_active', true)
-      .or(`name.ilike.%${cleanQuery}%,name.ilike.${cleanQuery}%`)
       .order('name')
       .limit(10)
 
@@ -67,34 +61,24 @@ serve(async (req) => {
       )
     }
 
-    // Filter and sort results for better matching
-    let filteredStudents = students || []
-    
-    // Prioritize exact matches and prefix matches
-    filteredStudents.sort((a, b) => {
+    // Prioritize exact/prefix matches before returning
+    const sorted = (students ?? []).sort((a, b) => {
       const aName = a.name.toLowerCase()
       const bName = b.name.toLowerCase()
-      const queryLower = cleanQuery.toLowerCase()
-      
-      // Exact match first
-      if (aName === queryLower) return -1
-      if (bName === queryLower) return 1
-      
-      // Prefix match second
-      if (aName.startsWith(queryLower) && !bName.startsWith(queryLower)) return -1
-      if (bName.startsWith(queryLower) && !aName.startsWith(queryLower)) return 1
-      
-      // Alphabetical order
+
+      if (aName === cleanQuery) return -1
+      if (bName === cleanQuery) return 1
+      if (aName.startsWith(cleanQuery) && !bName.startsWith(cleanQuery)) return -1
+      if (bName.startsWith(cleanQuery) && !aName.startsWith(cleanQuery)) return 1
       return aName.localeCompare(bName)
     })
 
     return new Response(
-      JSON.stringify({ students: filteredStudents }),
+      JSON.stringify({ students: sorted }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
-
-  } catch (error) {
-    console.error('Unexpected error:', error)
+  } catch (err) {
+    console.error('Unexpected error in search-students:', err)
     return new Response(
       JSON.stringify({ students: [] }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

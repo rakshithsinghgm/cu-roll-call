@@ -344,15 +344,14 @@
         // Search students with debouncing
         let searchTimeout;
         async function searchStudents(query) {
-            if (query.length < 2) {
-                hideAutocomplete();
-                return;
-            }
-
+        if (query.length < 2) {
+            hideAutocomplete();
+            return;
+        }
             clearTimeout(searchTimeout);
             searchTimeout = setTimeout(async () => {
                 try {
-                    const response = await fetch(`${SUPABASE_URL}/functions/v1/checkin`, {
+                    const response = await fetch(`https://posidnbttxlbutscdhpm.functions.supabase.co/search-students`, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
