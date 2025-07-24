@@ -548,13 +548,28 @@
                 const result = await response.json();
 
                 if (result.success) {
-                    showMessage(`✅ ${result.message} Class: ${classType}, Time: ${timeAttended} min, Check-in: ${result.checkinTime}`, 'success');
+                 // Convert check-in time to Central Time (America/Chicago)
+                    const chicagoTime = new Date(result.checkinTime).toLocaleTimeString('en-US', {
+                        timeZone: 'America/Chicago',
+                        hour: 'numeric',
+                        minute: '2-digit',
+                        hour12: true
+                    });
+
+                    const chicagoDate = new Date(result.checkinTime).toLocaleDateString('en-US', {
+                        timeZone: 'America/Chicago',
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric'
+                    });
+
+                    showMessage(`✅ ${result.message} Class: ${classType}, Time: ${timeAttended} min, Check-in: ${chicagoTime} on ${chicagoDate}`, 'success');
                     submitBtn.innerHTML = '✅ Checked In';
-                    
+
                     setTimeout(() => {
                         loadRecentCheckins();
                     }, 1000);
-                    
+
                     setTimeout(() => {
                         nameInput.value = '';
                         classTypeInput.value = '';
@@ -565,12 +580,7 @@
                         nameInput.focus();
                         currentSuggestions = [];
                     }, 5000);
-                    
-                } else {
-                    showMessage(result.error || 'Check-in failed. Please try again.', 'error');
-                    submitBtn.innerHTML = 'Check In Now';
-                    submitBtn.disabled = false;
-                }
+            }
 
             } catch (error) {
                 clearTimeout(timeoutId);

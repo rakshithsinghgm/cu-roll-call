@@ -1,7 +1,31 @@
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js'
 
-// Add CORS headers to response
+// === Utility to get current timestamp and date in America/Chicago ===
+function getChicagoTime(): { iso: string; date: string } {
+  const now = new Date()
+
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Chicago',
+    hour12: false,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  }).formatToParts(now)
+
+  const map = Object.fromEntries(parts.map(p => [p.type, p.value]))
+
+  const chicagoDateTime = new Date(`${map.year}-${map.month}-${map.day}T${map.hour}:${map.minute}:${map.second}`)
+  const iso = chicagoDateTime.toISOString()
+  const date = `${map.year}-${map.month}-${map.day}`
+
+  return { iso, date }
+}
+
+// === CORS Handler ===
 function withCORSHeaders(body: any, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
@@ -15,7 +39,6 @@ function withCORSHeaders(body: any, status = 200): Response {
 }
 
 serve(async (req) => {
-  // ✅ Handle preflight request
   if (req.method === 'OPTIONS') {
     return withCORSHeaders({ ok: true })
   }
@@ -47,14 +70,15 @@ serve(async (req) => {
       return withCORSHeaders({ error: 'Student not found in system.' }, 404)
     }
 
-    const today = new Date().toISOString().split('T')[0]
+    // Get today's date in Chicago timezone
+    const { iso: chicagoISO, date: chicagoDate } = getChicagoTime()
 
     // 2. Fetch today's check-ins
     const { data: checkinsToday, error: checkinError } = await supabase
       .from('attendance')
       .select('check_in_time')
       .eq('student_id', student.id)
-      .eq('check_in_date', today)
+      .eq('check_in_date', chicagoDate)
       .order('check_in_time', { ascending: false })
 
     if (checkinError) {
@@ -66,15 +90,16 @@ serve(async (req) => {
       return withCORSHeaders({ error: 'You have already checked in twice today.' }, 400)
     }
 
-    // 4. Enforce 30-minute interval
+    // 4. Enforce 30-minute interval (optional, you can implement here if needed)
 
-    // 5. Insert check-in
+    // 5. Insert check-in using Chicago time
     const { error: insertError } = await supabase.from('attendance').insert({
       student_id: student.id,
       student_name: student.name,
       class_type: classType,
       time_attended_minutes: timeAttendedMinutes,
-      check_in_time: timestamp || new Date().toISOString()
+      check_in_time: timestamp || chicagoISO,
+      check_in_date: chicagoDate,
     })
 
     if (insertError) {
@@ -85,8 +110,9 @@ serve(async (req) => {
     return withCORSHeaders({
       success: true,
       message: 'Successfully checked in!',
-      checkinTime: new Date().toLocaleTimeString()
+      checkinTime: chicagoISO,
     }, 200)
+
   } catch (err) {
     console.error('Unexpected error:', err)
     return withCORSHeaders({ error: 'Unexpected server error' }, 500)
