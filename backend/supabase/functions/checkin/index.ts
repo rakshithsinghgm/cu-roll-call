@@ -5,22 +5,20 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js'
 function getChicagoTime(): { iso: string; date: string } {
   const now = new Date()
 
-  const parts = new Intl.DateTimeFormat('en-US', {
+  // Simple approach: just return the current UTC time
+  // The frontend will handle timezone conversion for display
+  const iso = now.toISOString()
+  
+  // Get the date in Chicago timezone for database storage
+  const chicagoDateParts = new Intl.DateTimeFormat('en-CA', {
     timeZone: 'America/Chicago',
-    hour12: false,
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
   }).formatToParts(now)
 
-  const map = Object.fromEntries(parts.map(p => [p.type, p.value]))
-
-  const chicagoDateTime = new Date(`${map.year}-${map.month}-${map.day}T${map.hour}:${map.minute}:${map.second}`)
-  const iso = chicagoDateTime.toISOString()
-  const date = `${map.year}-${map.month}-${map.day}`
+  const dateMap = Object.fromEntries(chicagoDateParts.map(p => [p.type, p.value]))
+  const date = `${dateMap.year}-${dateMap.month}-${dateMap.day}`
 
   return { iso, date }
 }
