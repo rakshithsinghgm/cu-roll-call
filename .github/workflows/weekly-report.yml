@@ -1,14 +1,11 @@
 name: Weekly Attendance Report
-
 on:
   schedule:
     - cron: '0 12 * * 1'  # Every Monday at 12:00 UTC
   workflow_dispatch:
-
 jobs:
   report:
     runs-on: ubuntu-latest
-
     steps:
       - name: Fetch weekly attendance from Supabase
         run: |
@@ -17,25 +14,20 @@ jobs:
             -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_KEY }}" \
             ${{ secrets.SUPABASE_URL }}/rest/v1/weekly_attendance_report \
             -o report.json
-
           echo "✅ JSON report received:"
           cat report.json
-
       - name: Convert JSON to CSV
         run: |
           python3 -m pip install pandas
           python3 -c "
-import pandas as pd, json
-
-with open('report.json') as f:
-    data = json.load(f)
-
-df = pd.DataFrame(data)
-df.to_csv('report.csv', index=False)
-print('✅ CSV file created:')
-print(df)
-"
-
+          import pandas as pd, json
+          with open('report.json') as f:
+              data = json.load(f)
+          df = pd.DataFrame(data)
+          df.to_csv('report.csv', index=False)
+          print('✅ CSV file created:')
+          print(df)
+          "
       - name: Send attendance email via Gmail
         uses: dawidd6/action-send-mail@v3
         with:
@@ -49,9 +41,7 @@ print(df)
           from: "Jiu Jitsu Bot <${{ secrets.EMAIL_USERNAME }}>"
           body: |
             Hello Coach,
-
             Attached is this week's class attendance summary as a CSV.
-
             OSS 🥋,
             Your Jiu Jitsu Attendance Bot
           attachments: report.csv
