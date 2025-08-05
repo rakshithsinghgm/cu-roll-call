@@ -3,7 +3,7 @@ name: Weekly Attendance Report
 on:
   schedule:
     - cron: '0 12 * * 1'  # Every Monday at 12:00 UTC
-  workflow_dispatch:       # Manual trigger (optional)
+  workflow_dispatch:
 
 jobs:
   report:
@@ -17,17 +17,27 @@ jobs:
             -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_KEY }}" \
             -H "Content-Type: application/json" \
             -d '{
-              "query": "SELECT s.name AS student_name, COUNT(a.id) AS total_classes, COUNT(*) FILTER (WHERE a.class_type = 'gi') AS gi_classes, COUNT(*) FILTER (WHERE a.class_type = 'no-gi') AS no_gi_classes, ROUND(SUM(a.time_attended_minutes) / 60.0, 2) AS total_hours_attended FROM attendance a JOIN students s ON a.student_id = s.id WHERE a.check_in_date >= CURRENT_DATE - INTERVAL '6 days' GROUP BY s.name ORDER BY total_classes DESC;"
+              "query": "SELECT s.name AS student_name, COUNT(a.id) AS total_classes, COUNT(*) FILTER (WHERE a.class_type = ''gi'') AS gi_classes, COUNT(*) FILTER (WHERE a.class_type = ''no-gi'') AS no_gi_classes, ROUND(SUM(a.time_attended_minutes) / 60.0, 2) AS total_hours_attended FROM attendance a JOIN students s ON a.student_id = s.id WHERE a.check_in_date >= CURRENT_DATE - INTERVAL ''6 days'' GROUP BY s.name ORDER BY total_classes DESC;"
             }' \
             ${{ secrets.SUPABASE_URL }}/rest/v1/rpc/run_sql \
-            -o report.json
+            -o report.json || { echo "❌ Curl failed"; cat report.json || true; exit 1; }
+
+          echo "✅ report.json contents:"
+          cat report.json
+
+      - name: Check if report.json exists
+        run: |
+          if [ ! -f report.json ]; then
+            echo "❌ report.json does not exist"
+            exit 1
+          fi
 
       - name: Send attendance email via Gmail
         uses: dawidd6/action-send-mail@v3
         with:
           server_address: smtp.gmail.com
           server_port: 587
-          secure: false           # STARTTLS
+          secure: false
           username: ${{ secrets.EMAIL_USERNAME }}
           password: ${{ secrets.EMAIL_PASSWORD }}
           subject: "📝 Weekly Jiu Jitsu Attendance Report"
@@ -41,5 +51,3 @@ jobs:
             OSS 🥋,
             Your Jiu Jitsu Attendance Bot
           attachments: report.json
-
-
