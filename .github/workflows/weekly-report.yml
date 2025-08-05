@@ -3,7 +3,7 @@ name: Weekly Attendance Report
 on:
   schedule:
     - cron: '0 12 * * 1'  # Every Monday at 12:00 UTC
-  workflow_dispatch:
+  workflow_dispatch:       # Manual trigger (optional)
 
 jobs:
   report:
@@ -12,42 +12,47 @@ jobs:
     steps:
       - name: Fetch weekly attendance from Supabase
         run: |
-          curl -X POST \
+          curl -X GET \
             -H "apikey: ${{ secrets.SUPABASE_SERVICE_KEY }}" \
             -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_KEY }}" \
-            -H "Content-Type: application/json" \
-            -d '{
-              "query": "SELECT s.name AS student_name, COUNT(a.id) AS total_classes, COUNT(*) FILTER (WHERE a.class_type = ''gi'') AS gi_classes, COUNT(*) FILTER (WHERE a.class_type = ''no-gi'') AS no_gi_classes, ROUND(SUM(a.time_attended_minutes) / 60.0, 2) AS total_hours_attended FROM attendance a JOIN students s ON a.student_id = s.id WHERE a.check_in_date >= CURRENT_DATE - INTERVAL ''6 days'' GROUP BY s.name ORDER BY total_classes DESC;"
-            }' \
-            ${{ secrets.SUPABASE_URL }}/rest/v1/rpc/run_sql \
-            -o report.json || { echo "❌ Curl failed"; cat report.json || true; exit 1; }
+            ${{ secrets.SUPABASE_URL }}/rest/v1/weekly_attendance_report \
+            -o report.json
 
-          echo "✅ report.json contents:"
+          echo "✅ JSON report received:"
           cat report.json
 
-      - name: Check if report.json exists
+      - name: Convert JSON to CSV
         run: |
-          if [ ! -f report.json ]; then
-            echo "❌ report.json does not exist"
-            exit 1
-          fi
+          pip install pandas
+          python3 -c "
+import pandas as pd
+import json
+
+with open('report.json') as f:
+    data = json.load(f)
+
+df = pd.DataFrame(data)
+df.to_csv('report.csv', index=False)
+print('✅ CSV file created:')
+print(df)
+"
 
       - name: Send attendance email via Gmail
         uses: dawidd6/action-send-mail@v3
         with:
           server_address: smtp.gmail.com
           server_port: 587
-          secure: false
+          secure: false                   # STARTTLS
           username: ${{ secrets.EMAIL_USERNAME }}
-          password: ${{ secrets.EMAIL_PASSWORD }}
+          password: ${{ secrets.EMAIL_PASSWORD }}  # App Password
           subject: "📝 Weekly Jiu Jitsu Attendance Report"
           to: mike.cubjj@gmail.com
           from: "Jiu Jitsu Bot <${{ secrets.EMAIL_USERNAME }}>"
           body: |
             Hello Coach,
 
-            Attached is this week's class attendance summary.
+            Attached is this week's class attendance summary as a CSV.
 
             OSS 🥋,
             Your Jiu Jitsu Attendance Bot
-          attachments: report.json
+          attachments: report.csv
