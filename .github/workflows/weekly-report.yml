@@ -17,22 +17,22 @@ jobs:
             -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_KEY }}" \
             -H "Content-Type: application/json" \
             -d '{
-              "query": "SELECT student_name, COUNT(*) AS classes_attended FROM  WHERE check_in_date >= (now() - interval ''7 days'') GROUP BY student_name ORDER BY classes_attended DESC;"
+              "query": "SELECT student_name, COUNT(*) AS classes_attended FROM attendance WHERE check_in_date >= (now() - interval ''7 days'') GROUP BY student_name ORDER BY classes_attended DESC;"
             }' \
             ${{ secrets.SUPABASE_URL }}/rest/v1/rpc/run_sql \
             -o report.json
 
-      - name: Send attendance email via Outlook
+      - name: Send attendance email via Gmail
         uses: dawidd6/action-send-mail@v3
         with:
-          server_address: smtp.office365.com
+          server_address: smtp.gmail.com
           server_port: 587
-          secure: false                # STARTTLS (not SSL)
+          secure: false           # STARTTLS
           username: ${{ secrets.EMAIL_USERNAME }}
           password: ${{ secrets.EMAIL_PASSWORD }}
           subject: "📝 Weekly Jiu Jitsu Attendance Report"
           to: mike.cubjj@gmail.com
-          from: Jiu Jitsu Bot <${{ secrets.EMAIL_USERNAME }}>
+          from: "Jiu Jitsu Bot <${{ secrets.EMAIL_USERNAME }}>"
           body: |
             Hello Coach,
 
@@ -41,3 +41,5 @@ jobs:
             OSS 🥋,
             Your Jiu Jitsu Attendance Bot
           attachments: report.json
+
+
