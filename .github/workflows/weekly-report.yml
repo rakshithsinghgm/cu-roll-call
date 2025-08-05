@@ -17,7 +17,7 @@ jobs:
             -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_KEY }}" \
             -H "Content-Type: application/json" \
             -d '{
-              "query": "SELECT student_name, COUNT(*) AS classes_attended FROM attendance WHERE check_in_date >= (now() - interval ''7 days'') GROUP BY student_name ORDER BY classes_attended DESC;"
+              "query": "SELECT s.name AS student_name, COUNT(a.id) AS total_classes, COUNT(*) FILTER (WHERE a.class_type = 'gi') AS gi_classes, COUNT(*) FILTER (WHERE a.class_type = 'no-gi') AS no_gi_classes, ROUND(SUM(a.time_attended_minutes) / 60.0, 2) AS total_hours_attended FROM attendance a JOIN students s ON a.student_id = s.id WHERE a.check_in_date >= CURRENT_DATE - INTERVAL '6 days' GROUP BY s.name ORDER BY total_classes DESC;"
             }' \
             ${{ secrets.SUPABASE_URL }}/rest/v1/rpc/run_sql \
             -o report.json
