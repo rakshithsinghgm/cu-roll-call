@@ -3,7 +3,7 @@ name: Weekly Attendance Report
 on:
   schedule:
     - cron: '0 12 * * 1'  # Every Monday at 12:00 UTC
-  workflow_dispatch:       # Manual trigger (optional)
+  workflow_dispatch:
 
 jobs:
   report:
@@ -23,10 +23,9 @@ jobs:
 
       - name: Convert JSON to CSV
         run: |
-          pip install pandas
+          python3 -m pip install pandas
           python3 -c "
-import pandas as pd
-import json
+import pandas as pd, json
 
 with open('report.json') as f:
     data = json.load(f)
@@ -42,9 +41,9 @@ print(df)
         with:
           server_address: smtp.gmail.com
           server_port: 587
-          secure: false                   # STARTTLS
+          secure: false
           username: ${{ secrets.EMAIL_USERNAME }}
-          password: ${{ secrets.EMAIL_PASSWORD }}  # App Password
+          password: ${{ secrets.EMAIL_PASSWORD }}  # Gmail App Password
           subject: "📝 Weekly Jiu Jitsu Attendance Report"
           to: mike.cubjj@gmail.com
           from: "Jiu Jitsu Bot <${{ secrets.EMAIL_USERNAME }}>"
