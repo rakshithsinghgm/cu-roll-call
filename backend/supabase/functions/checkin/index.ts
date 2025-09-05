@@ -97,6 +97,51 @@ function withCORS(body: unknown, status = 200): Response {
   });
 }
 
+function parseTimeToMinutes(timeValue: any): number | null {
+  // If it's already a number, return it
+  if (typeof timeValue === 'number') {
+    return Number.isInteger(timeValue) ? timeValue : null;
+  }
+  
+  // If it's a string, try to parse it
+  if (typeof timeValue === 'string') {
+    const str = timeValue.trim().toLowerCase();
+    
+    // Check if it's just a number as string
+    const numValue = parseInt(str);
+    if (!isNaN(numValue) && str === numValue.toString()) {
+      return numValue;
+    }
+    
+    // Parse patterns like "2hrs", "2 hrs", "2h", "2 hours", "120min", "120 minutes"
+    const hourPatterns = [
+      /^(\d+(?:\.\d+)?)\s*(?:hrs?|hours?)$/i,
+      /^(\d+(?:\.\d+)?)\s*h$/i
+    ];
+    const minutePatterns = [
+      /^(\d+)\s*(?:mins?|minutes?)$/i,
+      /^(\d+)\s*m$/i
+    ];
+    
+    for (const pattern of hourPatterns) {
+      const match = str.match(pattern);
+      if (match) {
+        const hours = parseFloat(match[1]);
+        return Math.round(hours * 60);
+      }
+    }
+    
+    for (const pattern of minutePatterns) {
+      const match = str.match(pattern);
+      if (match) {
+        return parseInt(match[1]);
+      }
+    }
+  }
+  
+  return null;
+}
+
 function validateCheckInRequest(data: any): ValidationError[] {
   const errors: ValidationError[] = [];
   if (!data.name || typeof data.name !== 'string' || !data.name.trim()) {
@@ -111,12 +156,18 @@ function validateCheckInRequest(data: any): ValidationError[] {
     errors.push({ field: 'classType', message: 'Class type must be 50 characters or less' });
   }
 
-  if (!Number.isInteger(data.timeAttendedMinutes)) {
-    errors.push({ field: 'timeAttendedMinutes', message: 'Time attended must be an integer' });
-  } else if (data.timeAttendedMinutes < CONFIG.MIN_TIME_ATTENDED) {
-    errors.push({ field: 'timeAttendedMinutes', message: `Must attend at least ${CONFIG.MIN_TIME_ATTENDED} minute` });
-  } else if (data.timeAttendedMinutes > CONFIG.MAX_TIME_ATTENDED) {
-    errors.push({ field: 'timeAttendedMinutes', message: `Cannot exceed ${CONFIG.MAX_TIME_ATTENDED} minutes` });
+  // Parse time value to minutes
+  const timeAttendedMinutes = parseTimeToMinutes(data.timeAttendedMinutes);
+  if (timeAttendedMinutes === null) {
+    errors.push({ field: 'timeAttendedMinutes', message: 'Time attended must be a valid number or time format (e.g., "2hrs", "120min")' });
+  } else {
+    // Check if the parsed value is in allowed range and values
+    const allowedValues = [30, 60, 90, 120];
+    if (!allowedValues.includes(timeAttendedMinutes)) {
+      errors.push({ field: 'timeAttendedMinutes', message: `Time attended must be one of: ${allowedValues.join(', ')} minutes` });
+    }
+    // Update the data object with parsed value
+    data.timeAttendedMinutes = timeAttendedMinutes;
   }
 
   if (data.timestamp) {
