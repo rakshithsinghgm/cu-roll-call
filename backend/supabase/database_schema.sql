@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS attendance (
     student_id UUID NOT NULL REFERENCES students(id) ON DELETE CASCADE,
     student_name VARCHAR(100) NOT NULL,
     class_type class_type_enum NOT NULL,
-    time_attended_minutes INTEGER NOT NULL CHECK (time_attended_minutes IN (30, 60, 90)),
+    time_attended_minutes INTEGER NOT NULL CHECK (time_attended_minutes IN (30, 60, 90, 120)),
     check_in_time TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     check_in_date DATE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
