@@ -98,9 +98,9 @@ function withCORS(body: unknown, status = 200): Response {
 }
 
 function parseTimeToMinutes(timeValue: any): number | null {
-  // If it's already a number, return it
+  // If it's already a number, validate it's a valid integer
   if (typeof timeValue === 'number') {
-    return Number.isInteger(timeValue) ? timeValue : null;
+    return Number.isInteger(timeValue) && timeValue > 0 ? timeValue : null;
   }
   
   // If it's a string, try to parse it
@@ -108,9 +108,9 @@ function parseTimeToMinutes(timeValue: any): number | null {
     const str = timeValue.trim().toLowerCase();
     
     // Check if it's just a number as string
-    const numValue = parseInt(str);
+    const numValue = parseInt(str, 10);
     if (!isNaN(numValue) && str === numValue.toString()) {
-      return numValue;
+      return numValue > 0 ? numValue : null;
     }
     
     // Parse patterns like "2hrs", "2 hrs", "2h", "2 hours", "120min", "120 minutes"
@@ -127,14 +127,16 @@ function parseTimeToMinutes(timeValue: any): number | null {
       const match = str.match(pattern);
       if (match) {
         const hours = parseFloat(match[1]);
-        return Math.round(hours * 60);
+        const minutes = Math.round(hours * 60);
+        return minutes > 0 ? minutes : null;
       }
     }
     
     for (const pattern of minutePatterns) {
       const match = str.match(pattern);
       if (match) {
-        return parseInt(match[1]);
+        const minutes = parseInt(match[1], 10);
+        return minutes > 0 ? minutes : null;
       }
     }
   }
@@ -144,6 +146,7 @@ function parseTimeToMinutes(timeValue: any): number | null {
 
 function validateCheckInRequest(data: any): ValidationError[] {
   const errors: ValidationError[] = [];
+  
   if (!data.name || typeof data.name !== 'string' || !data.name.trim()) {
     errors.push({ field: 'name', message: 'Name is required and must be non-empty' });
   } else if (data.name.trim().length > 100) {
@@ -158,6 +161,7 @@ function validateCheckInRequest(data: any): ValidationError[] {
 
   // Parse time value to minutes
   const timeAttendedMinutes = parseTimeToMinutes(data.timeAttendedMinutes);
+  
   if (timeAttendedMinutes === null) {
     errors.push({ field: 'timeAttendedMinutes', message: 'Time attended must be a valid number or time format (e.g., "2hrs", "120min")' });
   } else {
@@ -186,6 +190,7 @@ function validateCheckInRequest(data: any): ValidationError[] {
       }
     }
   }
+  
   return errors;
 }
 
@@ -281,7 +286,8 @@ serve(async (req) => {
   let requestData: CheckInRequest;
   try {
     requestData = await req.json();
-  } catch {
+  } catch (error) {
+    logError('JSON parsing', error);
     return withCORS({ error: 'Invalid JSON in request body' }, 400);
   }
 
@@ -350,7 +356,8 @@ serve(async (req) => {
       checkInTime,
       checkInDate
     );
-  } catch {
+  } catch (error) {
+    logError('insertCheckIn', error);
     return withCORS({ error: 'Error inserting check‑in' }, 500);
   }
 
