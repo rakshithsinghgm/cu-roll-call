@@ -504,7 +504,7 @@
                     body: JSON.stringify({
                         name: name,
                         classType: classType,
-                        timeAttendedMinutes: timeAttended,
+                        timeAttendedMinutes: parseInt(timeAttended, 10),
                         timestamp: new Date().toISOString()
                     }),
                     signal: controller.signal
