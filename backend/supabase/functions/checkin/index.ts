@@ -98,46 +98,39 @@ function withCORS(body: unknown, status = 200): Response {
 }
 
 function parseTimeToMinutes(timeValue: any): number | null {
-  // If it's already a number, validate it's a valid integer
-  if (typeof timeValue === 'number') {
-    return Number.isInteger(timeValue) && timeValue > 0 ? timeValue : null;
+  // Convert to string first, then parse
+  const str = String(timeValue).trim().toLowerCase();
+  
+  // Try direct number parsing first
+  const directNum = parseInt(str, 10);
+  if (!isNaN(directNum) && directNum.toString() === str) {
+    return directNum > 0 ? directNum : null;
   }
   
-  // If it's a string, try to parse it
-  if (typeof timeValue === 'string') {
-    const str = timeValue.trim().toLowerCase();
-    
-    // Check if it's just a number as string
-    const numValue = parseInt(str, 10);
-    if (!isNaN(numValue) && str === numValue.toString()) {
-      return numValue > 0 ? numValue : null;
+  // Parse patterns like "2hrs", "2 hrs", "2h", "2 hours", "120min", "120 minutes"
+  const hourPatterns = [
+    /^(\d+(?:\.\d+)?)\s*(?:hrs?|hours?)$/i,
+    /^(\d+(?:\.\d+)?)\s*h$/i
+  ];
+  const minutePatterns = [
+    /^(\d+)\s*(?:mins?|minutes?)$/i,
+    /^(\d+)\s*m$/i
+  ];
+  
+  for (const pattern of hourPatterns) {
+    const match = str.match(pattern);
+    if (match) {
+      const hours = parseFloat(match[1]);
+      const minutes = Math.round(hours * 60);
+      return minutes > 0 ? minutes : null;
     }
-    
-    // Parse patterns like "2hrs", "2 hrs", "2h", "2 hours", "120min", "120 minutes"
-    const hourPatterns = [
-      /^(\d+(?:\.\d+)?)\s*(?:hrs?|hours?)$/i,
-      /^(\d+(?:\.\d+)?)\s*h$/i
-    ];
-    const minutePatterns = [
-      /^(\d+)\s*(?:mins?|minutes?)$/i,
-      /^(\d+)\s*m$/i
-    ];
-    
-    for (const pattern of hourPatterns) {
-      const match = str.match(pattern);
-      if (match) {
-        const hours = parseFloat(match[1]);
-        const minutes = Math.round(hours * 60);
-        return minutes > 0 ? minutes : null;
-      }
-    }
-    
-    for (const pattern of minutePatterns) {
-      const match = str.match(pattern);
-      if (match) {
-        const minutes = parseInt(match[1], 10);
-        return minutes > 0 ? minutes : null;
-      }
+  }
+  
+  for (const pattern of minutePatterns) {
+    const match = str.match(pattern);
+    if (match) {
+      const minutes = parseInt(match[1], 10);
+      return minutes > 0 ? minutes : null;
     }
   }
   
