@@ -99,11 +99,17 @@ function withCORS(body: unknown, status = 200): Response {
 
 function parseTimeToMinutes(timeValue: any): number | null {
   // Convert to string first, then parse
+  console.log('parseTimeToMinutes input:', timeValue, 'type:', typeof timeValue);
   const str = String(timeValue).trim().toLowerCase();
+  console.log('converted to string:', str);
   
   // Try direct number parsing first
   const directNum = parseInt(str, 10);
+  console.log('parseInt result:', directNum);
+  console.log('directNum.toString():', directNum.toString());
+  console.log('comparison:', directNum.toString() === str);
   if (!isNaN(directNum) && directNum.toString() === str) {
+    console.log('returning directNum:', directNum);
     return directNum > 0 ? directNum : null;
   }
   
@@ -133,12 +139,17 @@ function parseTimeToMinutes(timeValue: any): number | null {
       return minutes > 0 ? minutes : null;
     }
   }
-  
+  console.log('falling through to pattern matching or null');
   return null;
 }
 
 function validateCheckInRequest(data: any): ValidationError[] {
   const errors: ValidationError[] = [];
+
+  // Add debugging
+  console.log('Raw data received:', JSON.stringify(data));
+  console.log('timeAttendedMinutes type:', typeof data.timeAttendedMinutes);
+  console.log('timeAttendedMinutes value:', data.timeAttendedMinutes);
   
   if (!data.name || typeof data.name !== 'string' || !data.name.trim()) {
     errors.push({ field: 'name', message: 'Name is required and must be non-empty' });
@@ -154,13 +165,19 @@ function validateCheckInRequest(data: any): ValidationError[] {
 
   // Parse time value to minutes
   const timeAttendedMinutes = parseTimeToMinutes(data.timeAttendedMinutes);
+  console.log('Parsed timeAttendedMinutes:', timeAttendedMinutes);
+  console.log('Parsed type:', typeof timeAttendedMinutes);
   
   if (timeAttendedMinutes === null) {
+    console.log('timeAttendedMinutes is null - validation failed');
     errors.push({ field: 'timeAttendedMinutes', message: 'Time attended must be a valid number or time format (e.g., "2hrs", "120min")' });
   } else {
     // Check if the parsed value is in allowed range and values
     const allowedValues = [30, 60, 90, 120];
+    console.log('Checking if', timeAttendedMinutes, 'is in', allowedValues);
+    console.log('includes result:', allowedValues.includes(timeAttendedMinutes));
     if (!allowedValues.includes(timeAttendedMinutes)) {
+      console.log('Value not in allowed list - validation failed');
       errors.push({ field: 'timeAttendedMinutes', message: `Time attended must be one of: ${allowedValues.join(', ')} minutes` });
     }
     // Update the data object with parsed value
