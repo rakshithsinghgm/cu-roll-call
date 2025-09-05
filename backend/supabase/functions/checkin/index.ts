@@ -146,11 +146,6 @@ function parseTimeToMinutes(timeValue: any): number | null {
 function validateCheckInRequest(data: any): ValidationError[] {
   const errors: ValidationError[] = [];
 
-  // Add debugging
-  console.log('Raw data received:', JSON.stringify(data));
-  console.log('timeAttendedMinutes type:', typeof data.timeAttendedMinutes);
-  console.log('timeAttendedMinutes value:', data.timeAttendedMinutes);
-  
   if (!data.name || typeof data.name !== 'string' || !data.name.trim()) {
     errors.push({ field: 'name', message: 'Name is required and must be non-empty' });
   } else if (data.name.trim().length > 100) {
@@ -163,26 +158,14 @@ function validateCheckInRequest(data: any): ValidationError[] {
     errors.push({ field: 'classType', message: 'Class type must be 50 characters or less' });
   }
 
-  // Parse time value to minutes
+  // --- START MODIFICATION ---
   const timeAttendedMinutes = parseTimeToMinutes(data.timeAttendedMinutes);
-  console.log('Parsed timeAttendedMinutes:', timeAttendedMinutes);
-  console.log('Parsed type:', typeof timeAttendedMinutes);
-  
-  if (timeAttendedMinutes === null) {
-    console.log('timeAttendedMinutes is null - validation failed');
-    errors.push({ field: 'timeAttendedMinutes', message: 'Time attended must be a valid number or time format (e.g., "2hrs", "120min")' });
-  } else {
-    // Check if the parsed value is in allowed range and values
-    const allowedValues = [30, 60, 90, 120];
-    console.log('Checking if', timeAttendedMinutes, 'is in', allowedValues);
-    console.log('includes result:', allowedValues.includes(timeAttendedMinutes));
-    if (!allowedValues.includes(timeAttendedMinutes)) {
-      console.log('Value not in allowed list - validation failed');
-      errors.push({ field: 'timeAttendedMinutes', message: `Time attended must be one of: ${allowedValues.join(', ')} minutes` });
-    }
-    // Update the data object with parsed value
-    data.timeAttendedMinutes = timeAttendedMinutes;
+  const allowedValues = [30, 60, 90, 120];
+
+  if (timeAttendedMinutes === null || !allowedValues.includes(timeAttendedMinutes)) {
+    errors.push({ field: 'timeAttendedMinutes', message: `Time attended must be one of: ${allowedValues.join(', ')} minutes` });
   }
+  // --- END MODIFICATION ---
 
   if (data.timestamp) {
     const ts = new Date(data.timestamp);
@@ -200,7 +183,7 @@ function validateCheckInRequest(data: any): ValidationError[] {
       }
     }
   }
-  
+
   return errors;
 }
 
